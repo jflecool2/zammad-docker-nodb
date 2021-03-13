@@ -17,10 +17,12 @@ debconf-set-selections preseed.txt
 apt-get --no-install-recommends install -q -y postfix
 
 # install postgresql server
-#locale-gen en_US.UTF-8
-#localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
-#echo "LANG=en_US.UTF-8" > /etc/default/locale
-#apt-get --no-install-recommends install -q -y postgresql
+if [ "${ZAMMAD_DB_HOST}" == "localhost" ]; then
+  locale-gen en_US.UTF-8
+  localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+  echo "LANG=en_US.UTF-8" > /etc/default/locale
+  apt-get --no-install-recommends install -q -y postgresql
+fi
 
 # configure elasticsearch repo & key
 curl -s -J -L -o - https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add -
@@ -57,10 +59,12 @@ fi
 contrib/packager.io/fetch_locales.rb
 
 # create db & user
-#ZAMMAD_DB_PASS="$(tr -dc A-Za-z0-9 < /dev/urandom | head -c10)"
-#su - postgres -c "createdb -E UTF8 ${ZAMMAD_DB}"
-#echo "CREATE USER \"${ZAMMAD_DB_USER}\" WITH PASSWORD '${ZAMMAD_DB_PASS}';" | su - postgres -c psql
-#echo "GRANT ALL PRIVILEGES ON DATABASE \"${ZAMMAD_DB}\" TO \"${ZAMMAD_DB_USER}\";" | su - postgres -c psql
+if [ "${ZAMMAD_DB_HOST}" == "localhost" ]; then
+  ZAMMAD_DB_PASS="$(tr -dc A-Za-z0-9 < /dev/urandom | head -c10)"
+  su - postgres -c "createdb -E UTF8 ${ZAMMAD_DB}"
+  echo "CREATE USER \"${ZAMMAD_DB_USER}\" WITH PASSWORD '${ZAMMAD_DB_PASS}';" | su - postgres -c psql
+  echo "GRANT ALL PRIVILEGES ON DATABASE \"${ZAMMAD_DB}\" TO \"${ZAMMAD_DB_USER}\";" | su - postgres -c psql
+fi
 
 # create database.yml
 sed -e "s#production:#${RAILS_ENV}:#" -e "s#.*adapter:.*#  adapter: ${ZAMMAD_DB_ADAPTER}#" -e "s#.*username:.*#  username: ${ZAMMAD_DB_USER}#" -e "s#.*password:.*#  password: ${ZAMMAD_DB_PASS}#" -e "s#.*database:.*#  database: ${ZAMMAD_DB}\n  host: ${ZAMMAD_DB_HOST}#" < "${ZAMMAD_DIR}"/contrib/packager.io/database.yml.pkgr > "${ZAMMAD_DIR}"/config/database.yml
